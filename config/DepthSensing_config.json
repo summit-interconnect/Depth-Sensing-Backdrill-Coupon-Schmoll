@@ -1,0 +1,24 @@
+{
+  "coupon_name": "dsbdc_cpn",
+  "backdrill_lay_name": "bd",
+
+  "pth_hole_lay_name": "epoxy",
+  "pth_hole_size": 9.8,
+  "pth_hole_pad_size": 50,
+  "pth_hole_x_location": 0.05,
+  "pth_hole_y_location": 0.05,
+
+  "drill_sense_lay_name": "drill_sense",
+  "drill_sense_hole_size": 16,
+  "drill_sense_hole_pad_size": 50,
+  "drill_sense_x_location_offset": 0.1,
+  "drill_sense_y_location_offset": 0.05,
+
+  "connection_line_width": 10,
+
+  "font_type": "simple",
+  "text_x": 0.040,
+  "text_y": 0.040,
+  "text_width_w_factor": 0.5
+
+}
