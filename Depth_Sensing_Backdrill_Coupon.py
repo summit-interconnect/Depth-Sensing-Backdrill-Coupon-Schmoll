@@ -5,24 +5,14 @@
 #
 # Script Name: Depth Sensing Backdrill Coupon
 # Version: 1.0
-#
+
+import os
+import json
 from Environment import *
 from GenesisJob import GenesisJob
 from GenesisMatrix import GenesisMatrix
 from GenesisStep import GenesisStep
 from GenesisLayer import GenesisLayer
-# from GenesisAnalysisReport import GenesisAnalysisReport
-import DialogBox
-from css import CURRENT_STYLE
-from CustomWidgets import MessageOk, MessageOkCancel
-
-import os
-import sys
-import time
-import json
-import pathlib
-from PyQt5 import QtWidgets, QtGui, QtCore
-
 
 class DepthSensingBackdrillCoupon:
     def __init__(self, job_name, config_path=None):
@@ -32,7 +22,6 @@ class DepthSensingBackdrillCoupon:
         self.GENJOB = GenesisJob(job_name)
         self.GENMAT = GenesisMatrix(job_name)
         self.GENSTEP = GenesisStep(job_name, EDITS_STEP_NAME)
-        
         self.config = {}
         # Load configuration
         if config_path is None:
@@ -62,13 +51,6 @@ class DepthSensingBackdrillCoupon:
         except Exception as e:
             print(f"Error loading config file {config_path}: {e}")
             return {}
-            
-    # def setup_application(self):
-    #     """Set up PyQt application for GUI if not already done."""
-    #     if QtWidgets.QApplication.instance() is None:
-    #         self.app = QtWidgets.QApplication(sys.argv)
-    #     else:
-    #         self.app = QtWidgets.QApplication.instance()
     
     def add_clamping_hole_features(self):
         if self.GENJOB.stepExists(self.config["coupon_name"]):
@@ -88,157 +70,67 @@ class DepthSensingBackdrillCoupon:
 
         self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["pth_hole_lay_name"],clear_layers=True)
         self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={self.config["pth_hole_x_location"]},y={self.config["pth_hole_y_location"]},symbol=r{self.config["pth_hole_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-
-        Work_Layers = self.GENMAT.cuLayersNames() + [TOP_MASK_NAME, BOT_MASK_NAME]
-        for layer in Work_Layers:
+        # Add pad on all cu layers
+        for layer in self.GENMAT.cuLayersNames():
             if not self.GENJOB.layerExists(layer) or not layer: continue
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=layer,clear_layers=True)
             self.WIP_LAY = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=layer)
             self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={self.config["pth_hole_x_location"]},y={self.config["pth_hole_y_location"]},symbol=r{self.config["pth_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-    
+
+    def get_cu_number_to_name_map_info(self, get_value: int):
+        cu_number_to_name = {}
+        for idx, layer_name in enumerate(self.GENMAT.cuLayersNames(), start=1):
+            cu_number_to_name[(idx)] = layer_name
+        
+        if get_value and cu_number_to_name:
+            cu_name = cu_number_to_name.get(get_value, None)
+            return cu_name
+
+        return None
+
     def get_backdrill_info(self):
         drill_span_list = []
         for row in self.GENMAT.ROWS:
             drill_span = {}
-            if not row['name'].startswith(self.config["backdrill_lay_name"]): continue
+            if not row['name'].startswith(BACKDRILL_PREFIX): continue
+            if not row['drl_start'] != '' and not row['drl_end'] != '': continue
+            drill_span['name'] = row['name']
+            if SITE_NAME == "ANAHEIM":
+                # Extract start_cu_num and end_cu_num from drill_span['name'], e.g. 'bd1.4-3'
+                name_parts = drill_span['name'][2:].split('-')
+                start_cu_num = int(name_parts[0].split('.')[1])
+                end_cu_num = int(name_parts[1])
 
-            if row['drl_start'] != '' and row['drl_end'] != '':
-                drill_span['name'] = row['name']
-                if row['drl_start'] in self.GENMAT.cuLayersNames():
-                    drill_span['drl_start'] = row['drl_start']
-                elif row['drl_start'] in [TOP_MASK_NAME, TOP_PASTE_NAME, TOP_SILK_NAME]:
-                    drill_span['drl_start'] = TOP_LAYER_NAME
-                elif row['drl_start'] in [BOT_MASK_NAME, BOT_PASTE_NAME, BOT_SILK_NAME]:
-                    drill_span['drl_start'] = BOT_LAYER_NAME
+            if SITE_NAME == "ORANGE" or SITE_NAME == "HOLLISTER":
+                # Extract start_cu_num and end_cu_num from drill_span['name'], e.g. 'bdrill_1-2'
+                name_parts = drill_span['name'][2:].split('-')
+                start_cu_num = int(name_parts[0].split('_')[1])
+                end_cu_num = int(name_parts[1])
 
+            if SITE_NAME == "CHICAGO":
+                pass
 
-                if row['drl_end'] in self.GENMAT.cuLayersNames():
-                    drill_span['drl_end'] = row['drl_end']
-                elif row['drl_end'] in [TOP_MASK_NAME, TOP_PASTE_NAME, TOP_SILK_NAME]:
-                    drill_span['drl_end'] = TOP_LAYER_NAME
-                elif row['drl_end'] in [BOT_MASK_NAME, BOT_PASTE_NAME, BOT_SILK_NAME]:
-                    drill_span['drl_end'] = BOT_LAYER_NAME
+            drill_span['start_cu_num'] = start_cu_num
+            drill_span['end_cu_num'] = end_cu_num
+            drill_span['start_cu_name'] = self.get_cu_number_to_name_map_info(get_value=start_cu_num)
+            drill_span['end_cu_name'] = self.get_cu_number_to_name_map_info(get_value=end_cu_num)
+            drill_span['drl_start'] = drill_span['start_cu_name']
+            if start_cu_num < end_cu_num:
+                drill_span['drl_mnc'] = self.get_cu_number_to_name_map_info(get_value=end_cu_num + 1)
+            else:
+                drill_span['drl_mnc'] = self.get_cu_number_to_name_map_info(get_value=end_cu_num - 1)
 
-                drill_span_list.append(drill_span)
+            drill_span_list.append(drill_span)
         
         print(f"Drill Span List: {drill_span_list}")
-        # Example Ouput: Drill Span List: [{'name': 'bd1.4-3', 'drl_start': 'pgp3', 'drl_end': 'bot'}]
+        # Example output --> Drill Span List: [{'name': 'bdrill_1-2', 'start_cu_num': 1, 'end_cu_num': 2, 'start_cu_name': 'top', 'end_cu_name': 'pgp2', 'drl_start': 'top', 'drl_mnc': 'pgp3'}, {'name': 'bdrill_4-3', 'start_cu_num': 4, 'end_cu_num': 3, 'start_cu_name': 'bot', 'end_cu_name': 'pgp3', 'drl_start': 'bot', 'drl_mnc': 'pgp2'}]
         return drill_span_list
-    
-    # def add_drill_sense_features(self):
-    #     """Add drill sense features to the coupon step."""
         
-    #     count = 2
-    #     # x_position_increment = 0
-    #     # y_position_offset = 0.05
-
-    #     X_Pos = self.config["pth_hole_x_location"] + self.config["drill_sense_x_location_offset"]
-    #     Y_Pos = self.config["pth_hole_y_location"] + self.config["drill_sense_y_location_offset"]
-
-    #     for drill_lay in self.get_backdrill_info():
-
-    #         # print(f"Processing Backdrill Layer: {drill_lay['name']}")
-    #         self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["drill_sense_lay_name"],clear_layers=True)
-    #         self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-
-    #         # print(f"Processing Span Start Layer: {drill_lay['drl_start']}")
-    #         self.GENSTEP_CPN.workOnFirstLayer(layer_name=drill_lay['drl_start'],clear_layers=True)
-    #         self.WIP_LAY_start = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=drill_lay['drl_start'])
-    #         self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity={self.WIP_LAY_start.getPolarity()},angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-    #         # Add Line on Start layer
-    #         if drill_lay['drl_start'] != self.GENMAT.topOuterLayerName() and drill_lay['drl_start'] != self.GENMAT.bottomOuterLayerName():
-    #             self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={Y_Pos},xe={X_Pos},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity={self.WIP_LAY_start.getPolarity()},bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-    #             self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={self.config["pth_hole_y_location"]},xe={self.config["pth_hole_x_location"]},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity={self.WIP_LAY_start.getPolarity()},bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-    #         else:
-    #             self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={X_Pos-self.config["text_x"]/3},y={self.config["drill_sense_y_location_offset"]/2},text={count},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-
-    #         # print(f"Processing Span End Layer: {drill_lay['drl_end']}")
-    #         self.GENSTEP_CPN.workOnFirstLayer(layer_name=drill_lay['drl_end'],clear_layers=True)
-    #         self.WIP_LAY_end = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=drill_lay['drl_end'])
-    #         self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity={self.WIP_LAY_end.getPolarity()},angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-    #         # Add Line on End layer
-    #         if drill_lay['drl_end'] != self.GENMAT.topOuterLayerName() and drill_lay['drl_end'] != self.GENMAT.bottomOuterLayerName():
-    #             self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={Y_Pos},xe={X_Pos},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity={self.WIP_LAY_end.getPolarity()},bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-    #             self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={self.config["pth_hole_y_location"]},xe={self.config["pth_hole_x_location"]},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity={self.WIP_LAY_end.getPolarity()},bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-    #         else:
-    #             self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={X_Pos-self.config["text_x"]/3},y={self.config["drill_sense_y_location_offset"]/2},text={count},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-
-
-    #         for MASK_LAY in [TOP_MASK_NAME, BOT_MASK_NAME]:
-    #             # print(f"Processing {MASK_LAY} Layer")
-    #             if not self.GENJOB.layerExists(MASK_LAY): continue
-    #             if MASK_LAY == TOP_MASK_NAME and drill_lay['drl_start'] is not TOP_LAYER_NAME: continue
-    #             if MASK_LAY == BOT_MASK_NAME and drill_lay['drl_end'] is not BOT_LAYER_NAME: continue
-    #             self.GENSTEP_CPN.workOnFirstLayer(layer_name=MASK_LAY,clear_layers=True)
-    #             self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]+5},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-
-    #         count += 1
-    #         X_Pos += self.config["drill_sense_x_location_offset"]
+    def add_top_bot_text(self, lay_name=TOP_LAYER_NAME, text="TOP", xPos=0.0061, yPos=0.101, mirror="no"):
+        if self.GENSTEP_CPN.layerExists(lay_name):
+            self.GENSTEP_CPN.workOnFirstLayer(layer_name=lay_name,clear_layers=True)
+            self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={xPos},y={yPos},text={text},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror={mirror},fontname={self.config["font_type"]},ver=1')
         
-    #     self.add_top_bot_text()
-
-    #     self.add_profile_to_cpn()
-
-    #     self.add_thieving()
-
-    #     if self.GENSTEP_CPN.layerExists(TOP_LAYER_NAME):
-    #         self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
-
-    def add_drill_sense_features(self):
-        count = 1
-        X_Pos = self.config["pth_hole_x_location"] + self.config["drill_sense_x_location_offset"]
-        Y_Pos = self.config["pth_hole_y_location"] + self.config["drill_sense_y_location_offset"]
-        for drill_lay in self.get_backdrill_info():
-            # print(f"Processing Backdrill Layer: {drill_lay['name']}")
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["drill_sense_lay_name"],clear_layers=True)
-            self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-            # print(f"Processing Span Start Layer: {drill_lay['drl_start']}")
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=drill_lay['drl_start'],clear_layers=True)
-            self.WIP_LAY_start = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=drill_lay['drl_start'])
-            self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-            # Add Line on Start layer
-            if drill_lay['drl_start'] != self.GENMAT.topOuterLayerName() and drill_lay['drl_start'] != self.GENMAT.bottomOuterLayerName():
-                self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={Y_Pos},xe={X_Pos},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-                self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={self.config["pth_hole_y_location"]},xe={self.config["pth_hole_x_location"]},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-            else:
-                self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={X_Pos-self.config["text_x"]/3},y={self.config["drill_sense_y_location_offset"]/2},text={count},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-            # print(f"Processing Span End Layer: {drill_lay['drl_end']}")
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=drill_lay['drl_end'],clear_layers=True)
-            self.WIP_LAY_end = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=drill_lay['drl_end'])
-            self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-            # Add Line on End layer
-            if drill_lay['drl_end'] != self.GENMAT.topOuterLayerName() and drill_lay['drl_end'] != self.GENMAT.bottomOuterLayerName():
-                self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={Y_Pos},xe={X_Pos},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-                self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={self.config["pth_hole_y_location"]},xe={self.config["pth_hole_x_location"]},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
-            else:
-                self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={X_Pos-self.config["text_x"]/3},y={self.config["drill_sense_y_location_offset"]/2},text={count},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-
-            for MASK_LAY in [TOP_MASK_NAME, BOT_MASK_NAME]:
-                # print(f"Processing {MASK_LAY} Layer")
-                if not self.GENJOB.layerExists(MASK_LAY): continue
-                if MASK_LAY == TOP_MASK_NAME and drill_lay['drl_start'] is not TOP_LAYER_NAME: continue
-                if MASK_LAY == BOT_MASK_NAME and drill_lay['drl_end'] is not BOT_LAYER_NAME: continue
-                self.GENSTEP_CPN.workOnFirstLayer(layer_name=MASK_LAY,clear_layers=True)
-                self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]+5},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-
-            count += 1
-            X_Pos += self.config["drill_sense_x_location_offset"]
-        
-        self.add_top_bot_text()
-        self.add_profile_to_cpn()
-        self.add_thieving()
-
-        if self.GENSTEP_CPN.layerExists(TOP_LAYER_NAME):
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
-        
-    def add_top_bot_text(self):
-        if self.GENSTEP_CPN.layerExists(TOP_LAYER_NAME):
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
-            self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x=0.0061,y=0.101,text=TOP,x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-        if self.GENSTEP_CPN.layerExists(BOT_LAYER_NAME):
-            self.GENSTEP_CPN.workOnFirstLayer(layer_name=BOT_LAYER_NAME,clear_layers=True)
-            self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x=0.118,y=0.101,text=BOT,x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=yes,fontname={self.config["font_type"]},ver=1')
-
     def add_profile_to_cpn(self):
         CPN_Limits = self.GENSTEP_CPN.LIMITS()
         self.GENSTEP_CPN.COM(f'profile_rect,x1=0,y1=0,x2={CPN_Limits["xmax"]+0.025},y2={CPN_Limits["ymax"]+0.010}')
@@ -271,9 +163,54 @@ class DepthSensingBackdrillCoupon:
                 self.GENSTEP_CPN.COM(f'sel_move_other,target_layer={layer},invert=no,dx=0,dy=0,size=0,x_anchor=0,y_anchor=0,rotation=0,mirror=none')
         # Delete existing temp layer if exists
         self.GENSTEP_CPN.deleteLayer("thiev_tmp+++")
+    
+    def add_mask_openings(self, cu_lay_name: str, mask_lay_name: str):
+        if not self.GENJOB.layerExists(cu_lay_name) or not self.GENJOB.layerExists(mask_lay_name): return
+        self.GENSTEP_CPN.workOnFirstLayer(layer_name=cu_lay_name,clear_layers=True)
+        self.GENSTEP_CPN.COM('filter_reset,filter_name=popup')
+        self.GENSTEP_CPN.COM(f'filter_set,filter_name=popup,update_popup=no,include_syms=r{self.config['pth_hole_pad_size']}\;r{self.config['drill_sense_hole_pad_size']}')
+        self.GENSTEP_CPN.COM('filter_area_strt')
+        self.GENSTEP_CPN.COM('filter_area_end,layer=,filter_name=popup,operation=select,area_type=none,inside_area=no,intersect_area=no')
+        self.GENSTEP_CPN.COM(f'sel_copy_other,dest=layer_name,target_layer={mask_lay_name},invert=no,dx=0,dy=0,size=5,x_anchor=0,y_anchor=0,rotation=0,mirror=none')
+        return True
+    
+    def add_drill_sense_features(self):
+        count = 1
+        X_Pos = self.config["pth_hole_x_location"] + self.config["drill_sense_x_location_offset"]
+        Y_Pos = self.config["pth_hole_y_location"] + self.config["drill_sense_y_location_offset"]
+        for drill_lay in self.get_backdrill_info():
+            # print(f"Processing Backdrill Layer: {drill_lay}")
+            self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["drill_sense_lay_name"],clear_layers=True)
+            self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
+            
+            for lay in [drill_lay['drl_start'], drill_lay['drl_mnc']]:
+                # print(f"Processing Span Start Layer: {lay}")
+                if not self.GENJOB.layerExists(lay): continue
+                # Add Pad and text on Start layer
+                if lay == drill_lay['drl_start']:
+                    self.GENSTEP_CPN.workOnFirstLayer(layer_name=lay,clear_layers=True)
+                    self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
+                    self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x={X_Pos-self.config["text_x"]/3},y={self.config["drill_sense_y_location_offset"]/2},text={count},x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
+                
+                # Add Line on Must not cut layer
+                if lay == drill_lay['drl_mnc']:
+                    self.GENSTEP_CPN.workOnFirstLayer(layer_name=lay,clear_layers=True)
+                    self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
+                    self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={Y_Pos},xe={X_Pos},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
+                    self.GENSTEP_CPN.COM(f'add_line,attributes=no,xs={X_Pos},ys={self.config["pth_hole_y_location"]},xe={self.config["pth_hole_x_location"]},ye={self.config["pth_hole_y_location"]},symbol=r{self.config["connection_line_width"]},polarity=positive,bus_num_lines=0,bus_dist_by=pitch,bus_distance=0,bus_reference=left')
+
+            count += 1
+            X_Pos += self.config["drill_sense_x_location_offset"]
+        
+        self.add_top_bot_text()
+        self.add_top_bot_text(lay_name=BOT_LAYER_NAME, text="BOT", xPos=0.118, yPos=0.101, mirror="yes")
+        self.add_profile_to_cpn()
+        self.add_thieving()
+        self.add_mask_openings(cu_lay_name=TOP_LAYER_NAME, mask_lay_name=TOP_MASK_NAME)
+        self.add_mask_openings(cu_lay_name=BOT_LAYER_NAME, mask_lay_name=BOT_MASK_NAME)
+        self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
 
 if __name__ == '__main__':
-    print("This script is started Running!")
     dsbc = DepthSensingBackdrillCoupon(job_name=JOB)
     dsbc.add_clamping_hole_features()
     dsbc.add_drill_sense_features()

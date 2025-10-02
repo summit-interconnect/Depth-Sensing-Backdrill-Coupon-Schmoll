@@ -1,5 +1,23 @@
 [
     {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "json",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "json",
+        "description": "json",
+        "detail": "json",
+        "documentation": {}
+    },
+    {
         "label": "*",
         "importPath": "Environment",
         "description": "Environment",
@@ -37,108 +55,6 @@
         "description": "GenesisLayer",
         "isExtraImport": true,
         "detail": "GenesisLayer",
-        "documentation": {}
-    },
-    {
-        "label": "DialogBox",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "DialogBox",
-        "description": "DialogBox",
-        "detail": "DialogBox",
-        "documentation": {}
-    },
-    {
-        "label": "CURRENT_STYLE",
-        "importPath": "css",
-        "description": "css",
-        "isExtraImport": true,
-        "detail": "css",
-        "documentation": {}
-    },
-    {
-        "label": "MessageOk",
-        "importPath": "CustomWidgets",
-        "description": "CustomWidgets",
-        "isExtraImport": true,
-        "detail": "CustomWidgets",
-        "documentation": {}
-    },
-    {
-        "label": "MessageOkCancel",
-        "importPath": "CustomWidgets",
-        "description": "CustomWidgets",
-        "isExtraImport": true,
-        "detail": "CustomWidgets",
-        "documentation": {}
-    },
-    {
-        "label": "os",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "os",
-        "description": "os",
-        "detail": "os",
-        "documentation": {}
-    },
-    {
-        "label": "sys",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "sys",
-        "description": "sys",
-        "detail": "sys",
-        "documentation": {}
-    },
-    {
-        "label": "time",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "time",
-        "description": "time",
-        "detail": "time",
-        "documentation": {}
-    },
-    {
-        "label": "json",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "json",
-        "description": "json",
-        "detail": "json",
-        "documentation": {}
-    },
-    {
-        "label": "pathlib",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "pathlib",
-        "description": "pathlib",
-        "detail": "pathlib",
-        "documentation": {}
-    },
-    {
-        "label": "QtWidgets",
-        "importPath": "PyQt5",
-        "description": "PyQt5",
-        "isExtraImport": true,
-        "detail": "PyQt5",
-        "documentation": {}
-    },
-    {
-        "label": "QtGui",
-        "importPath": "PyQt5",
-        "description": "PyQt5",
-        "isExtraImport": true,
-        "detail": "PyQt5",
-        "documentation": {}
-    },
-    {
-        "label": "QtCore",
-        "importPath": "PyQt5",
-        "description": "PyQt5",
-        "isExtraImport": true,
-        "detail": "PyQt5",
         "documentation": {}
     },
     {
