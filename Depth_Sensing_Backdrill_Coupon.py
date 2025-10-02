@@ -11,7 +11,7 @@ from GenesisJob import GenesisJob
 from GenesisMatrix import GenesisMatrix
 from GenesisStep import GenesisStep
 from GenesisLayer import GenesisLayer
-from GenesisAnalysisReport import GenesisAnalysisReport
+# from GenesisAnalysisReport import GenesisAnalysisReport
 import DialogBox
 from css import CURRENT_STYLE
 from CustomWidgets import MessageOk, MessageOkCancel
@@ -26,64 +26,49 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 
 class DepthSensingBackdrillCoupon:
     def __init__(self, job_name, config_path=None):
-        """Initialize the Depth Sensing Backdrill Coupon class."""
-
-        self.site = SITE_NAME
+        self.site_name = SITE_NAME
+        self.site = SITE
         self.job_name = job_name
         self.GENJOB = GenesisJob(job_name)
         self.GENMAT = GenesisMatrix(job_name)
         self.GENSTEP = GenesisStep(job_name, EDITS_STEP_NAME)
         
-        
         self.config = {}
-
         # Load configuration
         if config_path is None:
             # Use default config path
-            self.config_path = os.path.join(os.path.dirname(__file__), 'config', 'DepthSensing_config.json')
+            self.config_path = os.path.join(os.path.dirname(__file__), 'config', 'DepthSensing.json')
         else:
             self.config_path = config_path
         
         # Try to load the default config first
         self.config = self.load_config(config_path=self.config_path)
-
         # Then try to load the site-specific config and update the default config
-        site_config = self.load_config(config_path=os.path.join(os.path.dirname(__file__), 'config', f'{self.site}_DepthSensing_config.json'))
-
+        site_config = self.load_config(config_path=os.path.join(os.path.dirname(__file__), 'config', f'{self.site}_DepthSensing.json'))
         if site_config:  # Only update if the site config was successfully loaded
             self.config.update(site_config)
-
         self.GENSTEP_CPN = GenesisStep(job_name, self.config["coupon_name"])
-        
 
         # For debugging
         print('==='*35)
         print(f"Configuration Loaded: {self.config}")
-        print(f"Job: {self.job_name}, Site: {self.site}, Coupon Step Name: {self.config["coupon_name"]}")
+        print(f"Job: {self.job_name}, Site: {self.site}, Coupon Step Name: {self.config['coupon_name']}")
         print('==='*35)
-
         
     def load_config(self,config_path):
-        """Load configuration from JSON file."""
         try:
             with open(config_path, 'r') as f:
                 return json.load(f)
-        except FileNotFoundError:
-            print(f"Config file not found at {config_path}")
-            MessageOk(title="Configuration Error", text=f"Config file not found at {config_path}. Using default settings.")
+        except Exception as e:
+            print(f"Error loading config file {config_path}: {e}")
             return {}
-        except json.JSONDecodeError:
-            print(f"Error parsing config file {config_path}")
-            MessageOk(title="Configuration Error", text=f"Error parsing config file {config_path}. Using default settings.")
-            return {}
-
             
-    def setup_application(self):
-        """Set up PyQt application for GUI if not already done."""
-        if QtWidgets.QApplication.instance() is None:
-            self.app = QtWidgets.QApplication(sys.argv)
-        else:
-            self.app = QtWidgets.QApplication.instance()
+    # def setup_application(self):
+    #     """Set up PyQt application for GUI if not already done."""
+    #     if QtWidgets.QApplication.instance() is None:
+    #         self.app = QtWidgets.QApplication(sys.argv)
+    #     else:
+    #         self.app = QtWidgets.QApplication.instance()
     
     def add_clamping_hole_features(self):
         if self.GENJOB.stepExists(self.config["coupon_name"]):
@@ -106,29 +91,12 @@ class DepthSensingBackdrillCoupon:
 
         Work_Layers = self.GENMAT.cuLayersNames() + [TOP_MASK_NAME, BOT_MASK_NAME]
         for layer in Work_Layers:
-            # if not layer: continue
             if not self.GENJOB.layerExists(layer) or not layer: continue
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=layer,clear_layers=True)
             self.WIP_LAY = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=layer)
-            # if self.WIP_LAY.getPolarity() == "positive":
-            #     self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={self.config["pth_hole_x_location"]},y={self.config["pth_hole_y_location"]},symbol=r{self.config["pth_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-            # else:
-            #     self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={self.config["pth_hole_x_location"]},y={self.config["pth_hole_y_location"]},symbol=r{self.config["pth_hole_pad_size"]},polarity=negative,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
             self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={self.config["pth_hole_x_location"]},y={self.config["pth_hole_y_location"]},symbol=r{self.config["pth_hole_pad_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
-
-    # def get_backdrill_info(self):
-    #     """Retrieve backdrill information from the Genesis job."""
-    #     backdrill_layers = []
-    #     for layer in self.GENMAT.drillLayersNames():
-    #         # if not layer: continue
-    #         if not self.GENJOB.layerExists(layer) or not layer: continue
-    #         if not layer.startswith(self.config["backdrill_lay_name"]): continue
-    #         backdrill_layers.append(layer)
-
-    #     print(f"Backdrill Layers: {backdrill_layers}")
-    #     return backdrill_layers
     
-    def get_drill_span(self):
+    def get_backdrill_info(self):
         drill_span_list = []
         for row in self.GENMAT.ROWS:
             drill_span = {}
@@ -167,7 +135,7 @@ class DepthSensingBackdrillCoupon:
     #     X_Pos = self.config["pth_hole_x_location"] + self.config["drill_sense_x_location_offset"]
     #     Y_Pos = self.config["pth_hole_y_location"] + self.config["drill_sense_y_location_offset"]
 
-    #     for drill_lay in self.get_drill_span():
+    #     for drill_lay in self.get_backdrill_info():
 
     #         # print(f"Processing Backdrill Layer: {drill_lay['name']}")
     #         self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["drill_sense_lay_name"],clear_layers=True)
@@ -220,7 +188,7 @@ class DepthSensingBackdrillCoupon:
         count = 1
         X_Pos = self.config["pth_hole_x_location"] + self.config["drill_sense_x_location_offset"]
         Y_Pos = self.config["pth_hole_y_location"] + self.config["drill_sense_y_location_offset"]
-        for drill_lay in self.get_drill_span():
+        for drill_lay in self.get_backdrill_info():
             # print(f"Processing Backdrill Layer: {drill_lay['name']}")
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=self.config["drill_sense_lay_name"],clear_layers=True)
             self.GENSTEP_CPN.COM(f'add_pad,attributes=no,x={X_Pos},y={Y_Pos},symbol=r{self.config["drill_sense_hole_size"]},polarity=positive,angle=0,mirror=no,nx=1,ny=1,dx=0,dy=0,xscale=1,yscale=1')
@@ -257,20 +225,16 @@ class DepthSensingBackdrillCoupon:
             X_Pos += self.config["drill_sense_x_location_offset"]
         
         self.add_top_bot_text()
-
         self.add_profile_to_cpn()
-
         self.add_thieving()
 
         if self.GENSTEP_CPN.layerExists(TOP_LAYER_NAME):
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
         
     def add_top_bot_text(self):
-        
         if self.GENSTEP_CPN.layerExists(TOP_LAYER_NAME):
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=TOP_LAYER_NAME,clear_layers=True)
             self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x=0.0061,y=0.101,text=TOP,x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=no,fontname={self.config["font_type"]},ver=1')
-
         if self.GENSTEP_CPN.layerExists(BOT_LAYER_NAME):
             self.GENSTEP_CPN.workOnFirstLayer(layer_name=BOT_LAYER_NAME,clear_layers=True)
             self.GENSTEP_CPN.COM(f'add_text,attributes=no,type=string,x=0.118,y=0.101,text=BOT,x_size={self.config["text_x"]},y_size={self.config["text_y"]},w_factor={self.config["text_width_w_factor"]},polarity=positive,angle=0,mirror=yes,fontname={self.config["font_type"]},ver=1')
@@ -280,27 +244,24 @@ class DepthSensingBackdrillCoupon:
         self.GENSTEP_CPN.COM(f'profile_rect,x1=0,y1=0,x2={CPN_Limits["xmax"]+0.025},y2={CPN_Limits["ymax"]+0.010}')
 
     def add_thieving(self):
-        """Add thieving features to the coupon step."""
-        # First create Blank layer to fill
+        # Delete existing temp layer if exists
         if self.GENJOB.layerExists("thiev_tmp+++"):
             self.GENSTEP_CPN.deleteLayer("thiev_tmp+++")
-
         self.GENSTEP_CPN.createLayer(layer_name = "thiev_tmp+++", polarity="positive")
         self.GENSTEP_CPN.workOnFirstLayer(layer_name="thiev_tmp+++",clear_layers=True)
-        
         for layer in self.GENMAT.cuLayersNames():
             if not self.GENJOB.layerExists(layer) or not layer: continue
             if layer in [TOP_LAYER_NAME, BOT_LAYER_NAME]: continue
             self.WIP_LAY = GenesisLayer(job_name=JOB, step_name=self.config["coupon_name"], layer_name=layer)
             # Fill That layer
             self.GENSTEP_CPN.COM(f'sr_fill,polarity=positive,step_margin_x=0.0035,step_margin_y=0.0035,step_max_dist_x=100,step_max_dist_y=100,sr_margin_x=0,sr_margin_y=0,sr_max_dist_x=0,sr_max_dist_y=0,nest_sr=yes,stop_at_steps=,consider_feat=no,consider_drill=no,consider_rout=no,dest=affected_layers,attributes=no')
-            # Clip that with required layers
+            # Clip that with required layer
             self.GENSTEP_CPN.COM(f'clip_area_end,layers_mode=affected_layers,layer=,area=reference,area_type=rectangle,inout=inside,contour_cut=yes,margin=15,ref_layer=epoxy,feat_types=line\;pad\;surface\;arc\;text')
             self.GENSTEP_CPN.COM(f'clip_area_end,layers_mode=affected_layers,layer=,area=reference,area_type=rectangle,inout=inside,contour_cut=yes,margin=15,ref_layer=drill_sense,feat_types=line\;pad\;surface\;arc\;text')
             self.GENSTEP_CPN.COM(f'clip_area_end,layers_mode=affected_layers,layer=,area=reference,area_type=rectangle,inout=inside,contour_cut=yes,margin=7,ref_layer={layer},feat_types=line\;pad\;surface\;arc\;text')
             # Move the thieving to actual layer
             self.GENSTEP_CPN.COM(f'sel_move_other,target_layer={layer},invert=no,dx=0,dy=0,size=0,x_anchor=0,y_anchor=0,rotation=0,mirror=none')
-
+            # Handle if Negative layer
             if self.WIP_LAY.getPolarity() == "negative":
                 self.GENSTEP_CPN.COM(f'sr_fill,polarity=positive,step_margin_x=0.0035,step_margin_y=0.0035,step_max_dist_x=100,step_max_dist_y=100,sr_margin_x=0,sr_margin_y=0,sr_max_dist_x=0,sr_max_dist_y=0,nest_sr=yes,stop_at_steps=,consider_feat=no,consider_drill=no,consider_rout=no,dest=affected_layers,attributes=no')
                 self.GENSTEP_CPN.workOnFirstLayer(layer_name=layer,clear_layers=True)
@@ -308,16 +269,11 @@ class DepthSensingBackdrillCoupon:
                 self.GENSTEP_CPN.workOnFirstLayer(layer_name="thiev_tmp+++",clear_layers=True)
                 self.GENSTEP_CPN.COM(f'profile_to_rout,layer=thiev_tmp+++,width=7')
                 self.GENSTEP_CPN.COM(f'sel_move_other,target_layer={layer},invert=no,dx=0,dy=0,size=0,x_anchor=0,y_anchor=0,rotation=0,mirror=none')
-
-        # Delete existing thieving layer if exists
+        # Delete existing temp layer if exists
         self.GENSTEP_CPN.deleteLayer("thiev_tmp+++")
 
 if __name__ == '__main__':
     print("This script is started Running!")
-
-    # Example usage: create an instance of the class and call setup_application
     dsbc = DepthSensingBackdrillCoupon(job_name=JOB)
-
     dsbc.add_clamping_hole_features()
-
     dsbc.add_drill_sense_features()

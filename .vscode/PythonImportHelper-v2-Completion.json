@@ -40,14 +40,6 @@
         "documentation": {}
     },
     {
-        "label": "GenesisAnalysisReport",
-        "importPath": "GenesisAnalysisReport",
-        "description": "GenesisAnalysisReport",
-        "isExtraImport": true,
-        "detail": "GenesisAnalysisReport",
-        "documentation": {}
-    },
-    {
         "label": "DialogBox",
         "kind": 6,
         "isExtraImport": true,
@@ -154,7 +146,7 @@
         "kind": 6,
         "importPath": "Depth_Sensing_Backdrill_Coupon",
         "description": "Depth_Sensing_Backdrill_Coupon",
-        "peekOfCode": "class DepthSensingBackdrillCoupon:\n    def __init__(self, job_name, config_path=None):\n        \"\"\"Initialize the Depth Sensing Backdrill Coupon class.\"\"\"\n        self.site = SITE_NAME\n        self.job_name = job_name\n        self.GENJOB = GenesisJob(job_name)\n        self.GENMAT = GenesisMatrix(job_name)\n        self.GENSTEP = GenesisStep(job_name, EDITS_STEP_NAME)\n        self.config = {}\n        # Load configuration",
+        "peekOfCode": "class DepthSensingBackdrillCoupon:\n    def __init__(self, job_name, config_path=None):\n        self.site_name = SITE_NAME\n        self.site = SITE\n        self.job_name = job_name\n        self.GENJOB = GenesisJob(job_name)\n        self.GENMAT = GenesisMatrix(job_name)\n        self.GENSTEP = GenesisStep(job_name, EDITS_STEP_NAME)\n        self.config = {}\n        # Load configuration",
         "detail": "Depth_Sensing_Backdrill_Coupon",
         "documentation": {}
     }
